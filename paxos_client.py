@@ -14,6 +14,7 @@ class PaxosClient(object):
         self.port = port
         self.serialize_message = serialize_message
         self.deserialize_message = deserialize_message
+        self.last_seen_proposal_id = False
 
     def request(self, value):
         message = self.serialize_message(self.client_name,
@@ -24,5 +25,9 @@ class PaxosClient(object):
         while not response:
             raw_response, learner = self.sock.recvfrom(1024)
             sender_name, recipient, response_message = self.deserialize_message(raw_response)
+            if response_message['proposal_id'] <= self.last_seen_proposal_id \
+                    and self.last_seen_proposal_id:
+                continue
             if response_message['value'] == value:
+                self.last_seen_proposal_id = response_message['proposal_id']
                 return response_message

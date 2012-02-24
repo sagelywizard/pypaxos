@@ -1,4 +1,4 @@
-from handlers import MessageHandler
+from message_server import MessageHandler
 
 import json
 
