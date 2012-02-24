@@ -4,7 +4,7 @@ import json
 
 class PaxosActor(MessageHandler):
     def __init__(self):
-        self.handlers = []
+        self.handlers = {}
 
     def handle_message(self, sender, message):
         message_type = message['message_type']
