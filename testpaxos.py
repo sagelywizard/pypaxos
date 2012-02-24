@@ -1,5 +1,6 @@
 from message_server import MessageServer
 from paxos_actors import Proposer, Accepter, Learner
+import sys
 
 def print_stuff(proposal_id, value):
     print "%s: %s" % (proposal_id, value)
