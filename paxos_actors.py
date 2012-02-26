@@ -4,10 +4,6 @@ from message_server import MessageHandler
 
 class PaxosActor(MessageHandler):
     handlers = {}
-    def set_handler(self, **kwargs):
-        for key in kwargs:
-            self.handlers[key] = kwargs[key]
-
     def handle_message(self, sender, message):
         message_type = message['message_type']
         del message['message_type']
@@ -16,7 +12,8 @@ class PaxosActor(MessageHandler):
 
         handler(sender, **message)
 
-    def send_message(self, recipient, message_type, instance_id=None, ballot_id=None, value=None, **kwargs):
+    def send_message(self, recipient, message_type,
+                     instance_id=None, ballot_id=None, value=None, **kwargs):
         message = kwargs
         message['message_type'] = message_type
         if instance_id:
@@ -152,8 +149,8 @@ class Learner(PaxosActor):
             instance['values'][value] += 1
             instance['accepters'][accepter] = value
 
-            # If the instance hasn't already been learned and it has been accepted
-            # by a majority of the accepters.
+            # If the instance hasn't already been learned and it has been
+            # accepted by a majority of the accepters.
             if instance['values'][value] >= (len(self.accepters)/2+1):
                 instance['learned'] = True
                 self.learn(instance_id, value)
