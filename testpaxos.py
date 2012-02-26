@@ -7,17 +7,17 @@ def print_stuff(value):
     print value
 
 class TestPaxos(MessageServer):
-    def __init__(self, *ports):
-        host = 'localhost'
+    def __init__(self, *hosts):
+        host, port = hosts[0]
         message_handlers = {
-            'proposer': Proposer(accepters=[(host, port, 'accepter') for port in ports]),
-            'accepter': Accepter(learners=[(host, port, 'learner') for port in ports]),
+            'proposer': Proposer(accepters=[(host, port, 'accepter') for host, port in hosts]),
+            'accepter': Accepter(learners=[(host, port, 'learner') for host, port in hosts]),
             'learner': Learner(print_stuff),
         }
 
-        MessageServer.__init__(self, host, ports[0], message_handlers)
+        MessageServer.__init__(self, host, port, message_handlers)
 
 if __name__ == '__main__':
-    ports = map(int, sys.argv[1:])
-    paxos = TestPaxos(*ports)
+    hosts = [(host.split(':', 1)[0], int(host.split(':', 1)[1])) for host in sys.argv[1:]]
+    paxos = TestPaxos(*hosts)
     paxos.start()
