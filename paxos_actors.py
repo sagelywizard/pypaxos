@@ -1,6 +1,6 @@
 from collections import defaultdict
 
-from handlers import MessageHandler
+from message_server import MessageHandler
 
 class PaxosActor(MessageHandler):
     handlers = {}
