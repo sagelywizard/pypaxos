@@ -1,8 +1,16 @@
+"""
+This file contains the actors for the Paxos algorithm. These actors are
+passed to a message handling server (implemented in message_server.py), where
+they perform as message handlers.
+"""
 from collections import defaultdict
 
 from message_server import MessageHandler
 
 class PaxosActor(MessageHandler):
+    """
+    The base class for all Paxos actors.
+    """
     handlers = {}
     def handle_message(self, sender, message):
         message_type = message['message_type']

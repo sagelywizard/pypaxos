@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 import collections
 import asyncore
 import socket
@@ -31,11 +32,16 @@ class MessageHandler(object):
                                            message)
 
 class MessageServer(asyncore.dispatcher):
+    """
+    A select()-based async message-passing server. This 
+    """
     def __init__(self, host, port, message_handlers,
                  serialize_message=default_serialize_message,
+                 max_message_size=8192,
                  deserialize_message=default_deserialize_message):
         asyncore.dispatcher.__init__(self)
 
+        self.max_message_size = max_message_size
         self.message_handlers = {}
         self.write_buffer = ''
         self.buffer_recipient = None
@@ -59,7 +65,7 @@ class MessageServer(asyncore.dispatcher):
         self.message_handlers[handler_name] = handler_object
 
     def handle_read(self):
-        raw_message, (host, port) = self.recvfrom(1024)
+        raw_message, (host, port) = self.recvfrom(self.max_message_size)
         sender_name, recipient, message = self.deserialize_message(raw_message)
         sender = (host, port, sender_name)
         handler = self.message_handlers.get(recipient)
