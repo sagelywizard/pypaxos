@@ -2,9 +2,8 @@ from message_server import MessageServer
 from paxos_actors import Proposer, Accepter, Learner
 import sys
 
-def print_stuff(value):
-    print "LEARNED STUFF"
-    print value
+def print_stuff(instance_id, value):
+    print "Instance: %s, Value: %s" % (instance_id, value)
 
 class TestPaxos(MessageServer):
     def __init__(self, *hosts):

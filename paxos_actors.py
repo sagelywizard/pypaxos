@@ -164,4 +164,4 @@ class Learner(PaxosActor):
                 self.learn(instance_id, value)
 
     def learn(self, instance_id, value):
-        self.call_on_learn(value)
+        self.call_on_learn(instance_id, value)
