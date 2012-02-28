@@ -8,4 +8,4 @@ Example usage:
     $ python
     >>> import paxos_client
     >>> cli = paxos_client.PaxosClient('localhost', 8888)
-    >>> cli.request('hello!')
+    >>> cli.propose('hello!')
