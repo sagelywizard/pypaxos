@@ -24,11 +24,11 @@ class PaxosActor(MessageHandler):
                      instance_id=None, ballot_id=None, value=None, **kwargs):
         message = kwargs
         message['message_type'] = message_type
-        if instance_id:
+        if instance_id is not None:
             message['instance_id'] = instance_id
-        if ballot_id:
+        if ballot_id is not None:
             message['ballot_id'] = ballot_id
-        if value:
+        if value is not None:
             message['value'] = value
         self.queue_message(recipient, message)
 
@@ -40,8 +40,8 @@ class Proposer(PaxosActor):
         # the sorted list of this proposer's (host, port, name) group and use
         # that as the mod for the ballot IDs for this proposer.
         proposers = sorted(set(proposers + [(host, port, name)]))
-        self.ballot_mod = proposers.index((host, port, name))
-        self.instances = defaultdict(lambda: {'ballot_id': self.ballot_mod,
+        ballot_mod = proposers.index((host, port, name))
+        self.instances = defaultdict(lambda: {'ballot_id': ballot_mod,
                                               'quorum': set([]),
                                               'highest_accepted_ballot_id': 0,
                                               'accepted_value': None,

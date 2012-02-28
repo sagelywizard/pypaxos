@@ -3,6 +3,7 @@ import collections
 import asyncore
 import socket
 import json
+import sys
 
 def default_serialize_message(sender_name, recipient, message):
     return json.dumps([sender_name, recipient, message])
@@ -66,11 +67,15 @@ class MessageServer(asyncore.dispatcher):
 
     def handle_read(self):
         raw_message, (host, port) = self.recvfrom(self.max_message_size)
-        sender_name, recipient, message = self.deserialize_message(raw_message)
-        sender = (host, port, sender_name)
-        handler = self.message_handlers.get(recipient)
-        if handler:
-            handler.handle_message(sender, message)
+        try:
+            sender_name, recipient, message = self.deserialize_message(raw_message)
+        except Exception as err:
+            print >> sys.stderr, "Error on message deserialzation: %s" % err
+        else:
+            sender = (host, port, sender_name)
+            handler = self.message_handlers.get(recipient)
+            if handler:
+                handler.handle_message(sender, message)
 
     def writable(self):
         return self.write_buffer or self.message_queue
