@@ -33,9 +33,15 @@ class PaxosActor(MessageHandler):
         self.queue_message(recipient, message)
 
 class Proposer(PaxosActor):
-    def __init__(self, accepters=[]):
+    def __init__(self, host, port, name, proposers=[], accepters=[]):
         self.accepters = set(accepters)
-        self.instances = defaultdict(lambda: {'ballot_id': 1,
+        # In order to achieve disjoint ballot IDs for different proposers,
+        # I order the set of all (host, port, name) groups, find the index in
+        # the sorted list of this proposer's (host, port, name) group and use
+        # that as the mod for the ballot IDs for this proposer.
+        proposers = sorted(set(proposers + [(host, port, name)]))
+        self.ballot_mod = proposers.index((host, port, name))
+        self.instances = defaultdict(lambda: {'ballot_id': self.ballot_mod,
                                               'quorum': set([]),
                                               'highest_accepted_ballot_id': 0,
                                               'accepted_value': None,

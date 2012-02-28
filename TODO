@@ -1,3 +1,5 @@
 Add leader election
-Add safe actor addition/removal (?)
+Add safe actor addition/removal
 Make learners poll accepters for N-1 if they learn instance N when they don't know N-1.
+Make leader alert client on failure of proposal.
+Make client retry on proposal failure
