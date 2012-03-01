@@ -1,5 +1,11 @@
 Add leader election
 Add safe actor addition/removal
-Make learners poll accepters for N-1 if they learn instance N when they don't know N-1.
+Make learners poll accepters for instance N-1 if they learn instance N when they don't know N-1.
 Make leader alert client on failure of proposal.
 Make client retry on proposal failure
+Make proposer be able to handle multiple clients
+Add logging
+Make leader queue up proposal instances
+Add command-line arg parsing?
+Make proposers regain state on restart
+Add support for timeouts on requests
