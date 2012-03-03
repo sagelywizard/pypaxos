@@ -44,39 +44,46 @@ class Proposer(PaxosActor):
         self.instances = defaultdict(lambda: {'ballot_id': ballot_mod,
                                               'quorum': set([]),
                                               'highest_accepted_ballot_id': 0,
-                                              'accepted_value': None,
+                                              'highest_accepted_value': None,
                                               'quorum_reached': False})
         self.current_instance_id = 0
         self.handlers = {
             'propose': self.receive_propose,
             'promise': self.receive_promise,
             'accepted': self.receive_accepted,
+            'nack_prepare': self.receive_nack_prepare,
         }
 
     def receive_propose(self, client, value):
         if self.accepters:
-            self.current_instance_id += 1
             self.instances['client'] = client
-            self.propose(value, self.current_instance_id)
+            self.propose(value)
         else:
             # TODO: SEND NACK
             pass
 
-    def propose(self, value, instance_id):
-        instance = self.instances[instance_id]
+    def propose(self, value):
+        self.current_instance_id += 1
+        instance = self.instances[self.current_instance_id]
         instance['value'] = value
-        self.send_prepare(instance_id, instance['ballot_id'])
+        self.send_prepare(self.current_instance_id, instance['ballot_id'])
 
     def send_prepare(self, instance_id, ballot_id):
         for accepter in self.accepters:
             self.send_message(accepter, "prepare", instance_id, ballot_id)
 
     def receive_promise(self, promiser, instance_id, ballot_id,
-                        accepted_ballot_id, accepted_value):
+                        accepted_ballot_id, accepted_value,
+                        highest_instance_id):
+        print "receive_promise:", highest_instance_id, self.current_instance_id
+        if highest_instance_id > self.current_instance_id:
+            self.current_instance_id = highest_instance_id
         instance = self.instances[instance_id]
+        print 'accepted_ballot_id: %s' % accepted_ballot_id
+        print 'accepted_value: %s' % accepted_value
         if accepted_ballot_id is not None:
             if accepted_ballot_id > instance['highest_accepted_ballot_id']:
-                instance['accepted_value'] = accepted_value
+                instance['highest_accepted_value'] = accepted_value
                 instance['highest_accepted_ballot_id'] = accepted_ballot_id
 
         instance['quorum'].add(promiser)
@@ -94,15 +101,26 @@ class Proposer(PaxosActor):
                 for accepter in self.accepters:
                     self.send_accept(accepter, instance_id, ballot_id, value)
 
+    def receive_nack_prepare(self, accepter, failed_instance_id, highest_instance_id):
+        print 'received nack_prepare!'
+        if highest_instance_id > self.current_instance_id:
+            self.current_instance_id = highest_instance_id
+
+        value = self.instances[failed_instance_id]['value']
+        self.propose(value)
+
     def send_accept(self, accepter, instance_id, ballot_id, value):
         self.send_message(accepter, "accept", instance_id, ballot_id, value)
 
     def receive_accepted(self, accepter, instance_id, ballot_id, value):
         pass
 
+# I am making the Accepter respond with the highest instance ID as well, so as to make proposers which propose on a lower proposal ID know to propose above the highest seen instance.
+
 class Accepter(PaxosActor):
     def __init__(self, learners=[]):
         self.learners = set(learners)
+        self.highest_instance_id = 0
         self.instances = defaultdict(lambda: {'highest_ballot_id': 0,
                                               'accepted_value': None,
                                               'accepted_ballot_id': None})
@@ -113,9 +131,15 @@ class Accepter(PaxosActor):
 
     def receive_prepare(self, proposer, instance_id, ballot_id):
         if ballot_id >= self.instances[instance_id]['highest_ballot_id']:
+            print "Receive prepare: Hi-I: %s, Rec-I: %s" % (self.highest_instance_id, instance_id)
+            if instance_id > self.highest_instance_id:
+                self.highest_instance_id = instance_id
             self.promise(proposer, instance_id, ballot_id)
         else:
-            pass #TODO: send nack
+            self.send_message(proposer,
+                              "nack_prepare",
+                              failed_instance_id=instance_id,
+                              highest_instance_id=self.highest_instance_id)
 
     def promise(self, proposer, instance_id, ballot_id):
         instance = self.instances[instance_id]
@@ -123,7 +147,8 @@ class Accepter(PaxosActor):
         accepted_value = instance['accepted_value']
         self.send_message(proposer, "promise", instance_id, ballot_id,
                           accepted_ballot_id=accepted_ballot_id,
-                          accepted_value=accepted_value)
+                          accepted_value=accepted_value,
+                          highest_instance_id=self.highest_instance_id)
         instance['highest_ballot_id'] = ballot_id
 
     def receive_accept(self, proposer, instance_id, ballot_id, value):
