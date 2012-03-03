@@ -75,12 +75,9 @@ class Proposer(PaxosActor):
     def receive_promise(self, promiser, instance_id, ballot_id,
                         accepted_ballot_id, accepted_value,
                         highest_instance_id):
-        print "receive_promise:", highest_instance_id, self.current_instance_id
         if highest_instance_id > self.current_instance_id:
             self.current_instance_id = highest_instance_id
         instance = self.instances[instance_id]
-        print 'accepted_ballot_id: %s' % accepted_ballot_id
-        print 'accepted_value: %s' % accepted_value
         if accepted_ballot_id is not None:
             if accepted_ballot_id > instance['highest_accepted_ballot_id']:
                 instance['highest_accepted_value'] = accepted_value
@@ -102,7 +99,6 @@ class Proposer(PaxosActor):
                     self.send_accept(accepter, instance_id, ballot_id, value)
 
     def receive_nack_prepare(self, accepter, failed_instance_id, highest_instance_id):
-        print 'received nack_prepare!'
         if highest_instance_id > self.current_instance_id:
             self.current_instance_id = highest_instance_id
 
@@ -131,7 +127,6 @@ class Accepter(PaxosActor):
 
     def receive_prepare(self, proposer, instance_id, ballot_id):
         if ballot_id >= self.instances[instance_id]['highest_ballot_id']:
-            print "Receive prepare: Hi-I: %s, Rec-I: %s" % (self.highest_instance_id, instance_id)
             if instance_id > self.highest_instance_id:
                 self.highest_instance_id = instance_id
             self.promise(proposer, instance_id, ballot_id)
