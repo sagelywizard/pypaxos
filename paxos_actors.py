@@ -1,9 +1,11 @@
+#!/usr/bin/env python
 """
 This file contains the actors for the Paxos algorithm. These actors are
 passed to a message handling server (implemented in message_server.py), where
 they perform as message handlers.
 """
 from collections import defaultdict
+import json
 
 from message_server import MessageHandler
 
@@ -21,7 +23,9 @@ class PaxosActor(MessageHandler):
         handler(sender, **message)
 
     def send_message(self, recipient, message_type,
-                     instance_id=None, ballot_id=None, value=None, **kwargs):
+                     instance_id=None, ballot_id=None, value=None,
+                     timeout=None, timeout_func=None, callback_func=None,
+                     **kwargs):
         message = kwargs
         message['message_type'] = message_type
         if instance_id is not None:
@@ -30,23 +34,28 @@ class PaxosActor(MessageHandler):
             message['ballot_id'] = ballot_id
         if value is not None:
             message['value'] = value
-        self.queue_message(recipient, message)
+        self.queue_message(recipient, message,
+                           timeout, timeout_func, callback_func)
 
 class Proposer(PaxosActor):
     def __init__(self, host, port, name, proposers=[], accepters=[]):
+        # each actor is uniquely identified by a host/port/name group.
+        self.id = (host, port, name)
         self.accepters = set(accepters)
         # In order to achieve disjoint ballot IDs for different proposers,
         # I order the set of all (host, port, name) groups, find the index in
         # the sorted list of this proposer's (host, port, name) group and use
         # that as the mod for the ballot IDs for this proposer.
-        proposers = sorted(set(proposers + [(host, port, name)]))
+        proposers = sorted(set(proposers + [self.id]))
         ballot_mod = proposers.index((host, port, name))
+        self.leader = proposers[0]
         self.instances = defaultdict(lambda: {'ballot_id': ballot_mod,
                                               'quorum': set([]),
                                               'highest_accepted_ballot_id': 0,
                                               'highest_accepted_value': None,
                                               'quorum_reached': False})
         self.current_instance_id = 0
+
         self.handlers = {
             'propose': self.receive_propose,
             'promise': self.receive_promise,
@@ -55,20 +64,25 @@ class Proposer(PaxosActor):
         }
 
     def receive_propose(self, client, value):
-        if self.accepters:
+        if self.leader == self.id:
+            self.current_instance_id += 1
             self.instances['client'] = client
-            self.propose(value)
+            self.send_prepare(value, self.current_instance_id)
+            self.respond()
         else:
-            # TODO: SEND NACK
-            pass
+            self.propose(value)
 
     def propose(self, value):
-        self.current_instance_id += 1
-        instance = self.instances[self.current_instance_id]
-        instance['value'] = value
-        self.send_prepare(self.current_instance_id, instance['ballot_id'])
+        def terrible():
+            print "C'est terrible: %s. Timed out after 10 seconds" % json.dumps(value)
+        def superb(message):
+            print "C'est superb!: %s" % json.dumps(message)
+        self.send_message(self.leader, "propose", value=value, timeout=10, timeout_func=terrible, callback_func=superb)
 
-    def send_prepare(self, instance_id, ballot_id):
+    def send_prepare(self, value, instance_id):
+        instance = self.instances[instance_id]
+        ballot_id = instance['ballot_id']
+        instance['value'] = value
         for accepter in self.accepters:
             self.send_message(accepter, "prepare", instance_id, ballot_id)
 
@@ -131,6 +145,7 @@ class Accepter(PaxosActor):
                 self.highest_instance_id = instance_id
             self.promise(proposer, instance_id, ballot_id)
         else:
+            print "prepare: received ballot id: %s is not >= the highest ballot id: %s" % (ballot_id, self.instances[instance_id]['highest_ballot_id'])
             self.send_message(proposer,
                               "nack_prepare",
                               failed_instance_id=instance_id,
@@ -156,7 +171,8 @@ class Accepter(PaxosActor):
                 self.send_accepted(learner, instance_id, ballot_id, value)
             self.send_accepted(proposer, instance_id, ballot_id, value)
         else:
-            pass # TODO?: Send nack?
+            print "accept: received ballot id: %s is not >= the highest ballot id: %s" % (ballot_id, self.instances[instance_id]['highest_ballot_id'])
+            #pass # TODO?: Send nack?
 
     def send_accepted(self, actor, instance_id, ballot_id, value):
         self.send_message(actor, "accepted", instance_id, ballot_id, value)

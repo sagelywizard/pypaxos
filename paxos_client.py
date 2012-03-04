@@ -20,5 +20,7 @@ class PaxosClient(object):
                 "Proposed value must be of basestring type."
         message = self.serialize_message(self.client_name,
                                          "proposer",
-                                         {"message_type": "propose", "value": value})
+                                         {"message_type": "propose", "value": value},
+                                         str(uuid.uuid4()),
+                                         False)
         self.sock.sendto(message, (self.host, self.port))
